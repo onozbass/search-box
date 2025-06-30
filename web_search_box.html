@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web検索ボックス</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .search-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .search-title {
+            text-align: center;
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .language-toggle {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .lang-button {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .lang-button:first-child {
+            border-radius: 6px 0 0 6px;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .lang-button:last-child {
+            border-radius: 0 6px 6px 0;
+            border-left: 1px solid #e2e8f0;
+        }
+
+        .lang-button.active {
+            background: #2d3748;
+            color: white;
+            border-color: #2d3748;
+        }
+
+        .lang-button:hover:not(.active) {
+            background: #edf2f7;
+            border-color: #cbd5e0;
+        }
+
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 16px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+            background: white;
+            color: #2d3748;
+        }
+
+        .search-input:focus {
+            border-color: #4a5568;
+            box-shadow: 0 0 0 3px rgba(74, 85, 104, 0.1);
+        }
+
+        .search-button {
+            background: #2d3748;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            margin-left: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(45, 55, 72, 0.2);
+        }
+
+        .search-button:hover {
+            background: #1a202c;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(45, 55, 72, 0.3);
+        }
+
+        .search-button:active {
+            transform: translateY(0);
+        }
+
+        .search-icon {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 60px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .dropdown.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+
+        .dropdown-item {
+            padding: 15px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid #f7fafc;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f7fafc;
+        }
+
+        .dropdown-item-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            opacity: 0.8;
+        }
+
+        .dropdown-item-name {
+            font-weight: 500;
+            color: #2d3748;
+        }
+
+        .dropdown-item-desc {
+            font-size: 12px;
+            color: #718096;
+            margin-left: auto;
+        }
+
+        @media (max-width: 600px) {
+            .search-container {
+                padding: 30px 20px;
+            }
+            
+            .search-title {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="search-container">
+        <h1 class="search-title" id="searchTitle">🔍 Web検索</h1>
+        <div class="language-toggle">
+            <button class="lang-button active" data-lang="ja">日本語</button>
+            <button class="lang-button" data-lang="en">English</button>
+        </div>
+        <div class="search-box">
+            <input type="text" class="search-input" placeholder="検索キーワードを入力..." id="searchInput">
+            <button class="search-button" id="searchButton">
+                <svg class="search-icon" viewBox="0 0 24 24">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+            </button>
+            <div class="dropdown" id="dropdown">
+                <!-- プルダウンの内容はJavaScriptで動的に生成されます -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const searchTitle = document.getElementById('searchTitle');
+        const dropdown = document.getElementById('dropdown');
+        const langButtons = document.querySelectorAll('.lang-button');
+
+        // 現在の言語
+        let currentLanguage = 'ja';
+
+        // 【メンテナンス用】多言語対応テキスト
+        const translations = {
+            ja: {
+                title: '🔍 Web検索',
+                placeholder: '検索キーワードを入力...'
+            },
+            en: {
+                title: '🔍 Web Search',
+                placeholder: 'Enter search keywords...'
+            }
+        };
+
+        // 【メンテナンス用】検索エンジンの設定（言語別）
+        const searchEngines = {
+            ja: [
+                {
+                    id: 'google',
+                    name: 'Google',
+                    url: 'https://www.google.com/search?q=',
+                    description: '一般検索',
+                    icon: '🔍'
+                },
+                {
+                    id: 'yahoo',
+                    name: 'Yahoo!',
+                    url: 'https://search.yahoo.co.jp/search?p=',
+                    description: '日本の検索',
+                    icon: '🌐'
+                },
+                {
+                    id: 'bing',
+                    name: 'Bing',
+                    url: 'https://www.bing.com/search?q=',
+                    description: 'Microsoft',
+                    icon: '🔎'
+                },
+                {
+                    id: 'duckduckgo',
+                    name: 'DuckDuckGo',
+                    url: 'https://duckduckgo.com/?q=',
+                    description: 'プライバシー重視',
+                    icon: '🦆'
+                },
+                {
+                    id: 'youtube',
+                    name: 'YouTube',
+                    url: 'https://www.youtube.com/results?search_query=',
+                    description: '動画検索',
+                    icon: '📺'
+                },
+                {
+                    id: 'twitter',
+                    name: 'X (Twitter)',
+                    url: 'https://twitter.com/search?q=',
+                    description: 'SNS検索',
+                    icon: '🐦'
+                },
+                {
+                    id: 'amazon',
+                    name: 'Amazon',
+                    url: 'https://www.amazon.co.jp/s?k=',
+                    description: '商品検索',
+                    icon: '📦'
+                }
+            ],
+            en: [
+                {
+                    id: 'google',
+                    name: 'Google',
+                    url: 'https://www.google.com/search?q=',
+                    description: 'General Search',
+                    icon: '🔍'
+                },
+                {
+                    id: 'bing',
+                    name: 'Bing',
+                    url: 'https://www.bing.com/search?q=',
+                    description: 'Microsoft Search',
+                    icon: '🔎'
+                },
+                {
+                    id: 'duckduckgo',
+                    name: 'DuckDuckGo',
+                    url: 'https://duckduckgo.com/?q=',
+                    description: 'Privacy Focused',
+                    icon: '🦆'
+                },
+                {
+                    id: 'youtube',
+                    name: 'YouTube',
+                    url: 'https://www.youtube.com/results?search_query=',
+                    description: 'Video Search',
+                    icon: '📺'
+                },
+                {
+                    id: 'twitter',
+                    name: 'X (Twitter)',
+                    url: 'https://twitter.com/search?q=',
+                    description: 'Social Search',
+                    icon: '🐦'
+                },
+                {
+                    id: 'reddit',
+                    name: 'Reddit',
+                    url: 'https://www.reddit.com/search/?q=',
+                    description: 'Community Search',
+                    icon: '🤖'
+                },
+                {
+                    id: 'amazon',
+                    name: 'Amazon',
+                    url: 'https://www.amazon.com/s?k=',
+                    description: 'Product Search',
+                    icon: '📦'
+                },
+                {
+                    id: 'github',
+                    name: 'GitHub',
+                    url: 'https://github.com/search?q=',
+                    description: 'Code Search',
+                    icon: '💻'
+                }
+            ]
+        };
+
+        // デフォルトの検索エンジン（各言語の最初のアイテム）
+        let currentEngine = searchEngines[currentLanguage][0].id;
+
+        // 言語切替機能
+        function switchLanguage(lang) {
+            currentLanguage = lang;
+            currentEngine = searchEngines[currentLanguage][0].id;
+            
+            // UIテキストの更新
+            searchTitle.textContent = translations[lang].title;
+            searchInput.placeholder = translations[lang].placeholder;
+            
+            // 言語ボタンのアクティブ状態を更新
+            langButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+            });
+            
+            // ドロップダウンメニューを再生成
+            generateDropdown();
+        }
+
+        // 言語ボタンのクリックイベント
+        langButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const lang = this.getAttribute('data-lang');
+                switchLanguage(lang);
+            });
+        });
+
+        // プルダウンメニューの動的生成
+        function generateDropdown() {
+            dropdown.innerHTML = '';
+            
+            searchEngines[currentLanguage].forEach(engine => {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+                item.setAttribute('data-engine', engine.id);
+                
+                item.innerHTML = `
+                    <div class="dropdown-item-icon">${engine.icon}</div>
+                    <div class="dropdown-item-name">${engine.name}</div>
+                    <div class="dropdown-item-desc">${engine.description}</div>
+                `;
+                
+                // クリックイベントの追加
+                item.addEventListener('click', function() {
+                    const query = searchInput.value.trim();
+                    if (query) {
+                        performSearch(engine.id, query);
+                    }
+                });
+                
+                dropdown.appendChild(item);
+            });
+        }
+
+        // ページ読み込み時にドロップダウンを生成
+        generateDropdown();
+
+        // 入力フィールドにフォーカスがあるときにドロップダウンを表示
+        searchInput.addEventListener('input', function() {
+            if (this.value.trim() !== '') {
+                dropdown.classList.add('show');
+            } else {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // 入力フィールドのフォーカス/ブラー処理
+        searchInput.addEventListener('focus', function() {
+            if (this.value.trim() !== '') {
+                dropdown.classList.add('show');
+            }
+        });
+
+        // ドロップダウン外をクリックしたときに非表示
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-box')) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // ドロップダウンアイテムのクリック処理は generateDropdown() 内で設定
+
+        // 虫眼鏡ボタンのクリック処理
+        searchButton.addEventListener('click', function() {
+            const query = searchInput.value.trim();
+            if (query) {
+                performSearch(currentEngine, query);
+            }
+        });
+
+        // Enterキーでの検索
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const query = this.value.trim();
+                if (query) {
+                    performSearch(currentEngine, query);
+                }
+            }
+        });
+
+        // 検索実行関数
+        function performSearch(engineId, query) {
+            const engine = searchEngines[currentLanguage].find(e => e.id === engineId);
+            if (!engine) return;
+            
+            const encodedQuery = encodeURIComponent(query);
+            const searchUrl = engine.url + encodedQuery;
+            
+            // 新しいタブで検索ページを開く
+            window.open(searchUrl, '_blank');
+            
+            // ドロップダウンを非表示
+            dropdown.classList.remove('show');
+        }
+
+        // 入力フィールドにフォーカスを当てる
+        searchInput.focus();
+    </script>
+</body>
+</html>
