@@ -1,0 +1,255 @@
+const fs = require(‘fs’).promises;
+
+class APIDataFetcher {
+constructor(apiUrl, bearerToken) {
+this.apiUrl = apiUrl;
+this.bearerToken = bearerToken;
+this.allData = [];
+}
+
+async fetchData(cursor = null) {
+const requestBody = {
+// 必要なパラメータを設定
+limit: 100, // 1回のリクエストで取得する件数
+…(cursor && { cursor }) // カーソルがある場合のみ含める
+};
+
+```
+try {
+  const response = await fetch(this.apiUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${this.bearerToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data;
+} catch (error) {
+  console.error('API request failed:', error);
+  throw error;
+}
+```
+
+}
+
+async fetchAllData() {
+let cursor = null;
+let hasMore = true;
+let pageCount = 0;
+
+```
+console.log('データ取得を開始します...');
+
+while (hasMore) {
+  try {
+    const response = await this.fetchData(cursor);
+    
+    // レスポンスの構造は実際のAPIに合わせて調整してください
+    const { data, next_cursor, has_more } = response;
+    
+    // データを配列に追加
+    this.allData.push(...data);
+    
+    // 次のページの情報を更新
+    cursor = next_cursor;
+    hasMore = has_more;
+    pageCount++;
+    
+    console.log(`ページ ${pageCount}: ${data.length}件取得 (累計: ${this.allData.length}件)`);
+    
+    // API制限を考慮して少し待機
+    await this.sleep(100);
+    
+  } catch (error) {
+    console.error('データ取得中にエラーが発生しました:', error);
+    throw error;
+  }
+}
+
+console.log(`全データ取得完了: ${this.allData.length}件`);
+return this.allData;
+```
+
+}
+
+async saveToFile(filename = ‘api_data.json’) {
+try {
+const jsonData = JSON.stringify(this.allData, null, 2);
+await fs.writeFile(filename, jsonData, ‘utf8’);
+console.log(`データをファイルに保存しました: ${filename}`);
+} catch (error) {
+console.error(‘ファイル保存中にエラーが発生しました:’, error);
+throw error;
+}
+}
+
+sleep(ms) {
+return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 取得したデータの統計情報を表示
+showStatistics() {
+console.log(’\n=== データ統計 ===’);
+console.log(`総件数: ${this.allData.length}`);
+
+```
+if (this.allData.length > 0) {
+  console.log(`最初のレコード:`, this.allData[0]);
+  console.log(`最後のレコード:`, this.allData[this.allData.length - 1]);
+}
+```
+
+}
+}
+
+// 使用例
+async function main() {
+// 設定
+const API_URL = ‘https://api.example.com/data’;
+const BEARER_TOKEN = ‘your-bearer-token-here’;
+const OUTPUT_FILE = ‘fetched_data.json’;
+
+const fetcher = new APIDataFetcher(API_URL, BEARER_TOKEN);
+
+try {
+// 全データを取得
+await fetcher.fetchAllData();
+
+```
+// 統計情報を表示
+fetcher.showStatistics();
+
+// ファイルに保存
+await fetcher.saveToFile(OUTPUT_FILE);
+```
+
+} catch (error) {
+console.error(‘処理中にエラーが発生しました:’, error);
+process.exit(1);
+}
+}
+
+// 実行
+main();
+
+// 別の実装例：より汎用的なバージョン
+class GenericAPIFetcher {
+constructor(config) {
+this.apiUrl = config.apiUrl;
+this.bearerToken = config.bearerToken;
+this.requestConfig = config.requestConfig || {};
+this.responseParser = config.responseParser || this.defaultResponseParser;
+this.allData = [];
+}
+
+defaultResponseParser(response) {
+// デフォルトのレスポンス解析
+return {
+data: response.data || response.items || [],
+nextCursor: response.next_cursor || response.nextCursor || response.cursor,
+hasMore: response.has_more || response.hasMore || false
+};
+}
+
+async fetchPage(cursor = null) {
+const requestBody = {
+…this.requestConfig,
+…(cursor && { cursor })
+};
+
+```
+const response = await fetch(this.apiUrl, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${this.bearerToken}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify(requestBody)
+});
+
+if (!response.ok) {
+  throw new Error(`HTTP error! status: ${response.status}`);
+}
+
+return await response.json();
+```
+
+}
+
+async fetchAll() {
+let cursor = null;
+let hasMore = true;
+let pageCount = 0;
+
+```
+while (hasMore) {
+  const response = await this.fetchPage(cursor);
+  const parsed = this.responseParser(response);
+  
+  this.allData.push(...parsed.data);
+  cursor = parsed.nextCursor;
+  hasMore = parsed.hasMore;
+  pageCount++;
+  
+  console.log(`ページ ${pageCount}: ${parsed.data.length}件取得`);
+  
+  // レート制限対策
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+return this.allData;
+```
+
+}
+
+async saveToFile(filename, format = ‘json’) {
+let content;
+
+```
+if (format === 'json') {
+  content = JSON.stringify(this.allData, null, 2);
+} else if (format === 'csv') {
+  // CSV形式での出力例
+  if (this.allData.length > 0) {
+    const headers = Object.keys(this.allData[0]).join(',');
+    const rows = this.allData.map(item => 
+      Object.values(item).map(val => `"${val}"`).join(',')
+    );
+    content = [headers, ...rows].join('\n');
+  }
+}
+
+await fs.writeFile(filename, content, 'utf8');
+console.log(`データを${format}形式で保存: ${filename}`);
+```
+
+}
+}
+
+// 使用例2
+async function example2() {
+const fetcher = new GenericAPIFetcher({
+apiUrl: ‘https://api.example.com/users’,
+bearerToken: ‘your-token’,
+requestConfig: {
+limit: 50,
+include_deleted: false
+},
+responseParser: (response) => ({
+data: response.users,
+nextCursor: response.pagination.next_cursor,
+hasMore: response.pagination.has_more
+})
+});
+
+await fetcher.fetchAll();
+await fetcher.saveToFile(‘users.json’);
+await fetcher.saveToFile(‘users.csv’, ‘csv’);
+}
